@@ -705,7 +705,7 @@ export default function Home() {
               </div>
             </section>
 
-            {/* DETAYLI PUANLAMA KILAVUZU (EXCEL KURALLARI) */}
+            {/* DETAYLI PUANLAMA KILAVUZU (RESMİ LİG KURALLARI) */}
             <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-3">
               <h3 className="font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
                 <HelpCircle className="w-4 h-4 text-blue-400" /> Resmi Lig Puanlama Kuralları
@@ -713,52 +713,54 @@ export default function Home() {
 
               <div className="space-y-2 text-slate-300 leading-relaxed">
                 <div>
-                  <b className="text-white block mb-0.5">1. Skor ve Sonuç:</b>
+                  <b className="text-white block mb-1">1. Taraf ve Skor Puanları:</b>
                   <ul className="space-y-1 pl-1 text-[11px]">
                     <li className="flex items-center justify-between">
+                      <span>• Kazanan Taraf / Beraberlik:</span>
+                      <b className="text-blue-400 font-bold">+3 Puan</b>
+                    </li>
+                    <li className="flex items-center justify-between">
                       <span>• Tam Skor İsabeti:</span>
-                      <b className="text-emerald-400 font-bold">+3 Puan</b>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span>• Maç Sonucu (1-X-2):</span>
-                      <b className="text-blue-400 font-bold">+1 Puan</b>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span>• Yanlış Tahmin:</span>
-                      <b className="text-red-400 font-bold">-1 Puan</b>
+                      <b className="text-emerald-400 font-bold">+6 Puan</b>
                     </li>
                   </ul>
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80">
-                  <b className="text-white block mb-0.5">2. Kırmızı Kart Kuralları:</b>
+                  <b className="text-red-400 block mb-1 font-bold">2. Ölümcül -10P Kuralı:</b>
+                  <p className="text-[11px] text-slate-300">
+                    Bir oyuncu <b className="text-white">Tam Skor</b> bildiğinde; kazanan tarafı dahi bilemeyen rakipler <b className="text-red-400 font-bold">-10 Puan</b> ceza alır!
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    *(Eğer rakip de en azından kazanan tarafı bildiyse ceza yemez, +3P alır).*
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800/80">
+                  <b className="text-white block mb-1">3. Kırmızı Kart Bahsi:</b>
                   <ul className="space-y-1 pl-1 text-[11px]">
                     <li className="flex items-center justify-between">
-                      <span>• Kırmızı Var Bildi (Genel):</span>
+                      <span>• Kırmızı Çıkar Bildi:</span>
                       <b className="text-emerald-400 font-bold">+3 Puan</b>
                     </li>
                     <li className="flex items-center justify-between">
-                      <span>• Kırmızı Gören Takımı Bildi:</span>
+                      <span>• Gören Takımı da Bildi:</span>
                       <b className="text-emerald-400 font-bold">+6 Puan</b>
                     </li>
                     <li className="flex items-center justify-between">
                       <span>• Kırmızı Dedi Ama Çıkmadı:</span>
                       <b className="text-red-400 font-bold">-2 Puan</b>
                     </li>
-                    <li className="flex items-center justify-between text-slate-400">
-                      <span>• Kırmızı İstemedi Ama Çıktı:</span>
-                      <span className="font-bold">0 Puan (Ceza yok)</span>
-                    </li>
                   </ul>
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80">
-                  <b className="text-white block mb-0.5">3. Çarpanlar ve Kilit:</b>
+                  <b className="text-white block mb-0.5">4. Galatasaray Çarpanı:</b>
                   <p className="text-[11px] text-slate-400">
-                    • <b className="text-red-400">Galatasaray</b> maçlarında kazanılan ve kaybedilen tüm puanlar <b className="text-white">x3</b> ile çarpılır.
+                    • <b className="text-red-400 font-bold">Galatasaray</b> maçlarında kazanılan ve kaybedilen tüm puanlar <b className="text-white font-bold">x3</b> ile katlanır (Tam Skor: +18P / Ceza: -30P).
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    • Kapanış: <b className="text-white">Salı 17:30 (İrlanda Saati)</b>. Bu saatten sonra tahminler birbirine görünür hale gelir.
+                    • Kapanış: <b className="text-white">Salı 17:30 (İrlanda Saati)</b>.
                   </p>
                 </div>
               </div>
