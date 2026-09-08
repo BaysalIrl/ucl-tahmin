@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Trophy, Flame, ChevronDown, Lock, EyeOff, ShieldCheck, 
-  KeyRound, LogOut, Sparkles, Medal, Calendar, HelpCircle, CheckCircle2, XCircle
+  KeyRound, LogOut, Sparkles, Medal, Calendar, HelpCircle, CheckCircle2, History
 } from 'lucide-react';
 
 interface Profile {
@@ -56,7 +56,6 @@ const TOURNAMENT_STAGES = [
   { id: 13, label: 'BÜYÜK FİNAL 🏆' },
 ];
 
-// 1. HAFTA KİLİTLENME ZAMANI: Salı 17:30 İrlanda Saati (UTC+1)
 const DEADLINE = new Date('2026-09-08T17:30:00+01:00');
 
 export default function Home() {
@@ -67,13 +66,15 @@ export default function Home() {
   const [pinError, setPinError] = useState<string>('');
 
   const [matches, setMatches] = useState<Match[]>([]);
+  const [allFinishedMatches, setAllFinishedMatches] = useState<Match[]>([]);
+  const [expandedMatches, setExpandedMatches] = useState<Record<number, boolean>>({});
+
   const [myPredictions, setMyPredictions] = useState<Record<number, Prediction>>({});
   const [allPredictions, setAllPredictions] = useState<Prediction[]>([]);
   const [activeWeek, setActiveWeek] = useState<number>(1);
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminScores, setAdminScores] = useState<Record<number, any>>({});
   const [isLocked, setIsLocked] = useState(false);
-  const [showRulesModal, setShowRulesModal] = useState(false);
 
   useEffect(() => {
     const checkLock = () => {
@@ -115,6 +116,7 @@ export default function Home() {
       }
     }
 
+    // Seçili haftanın maçları
     const { data: mtchs } = await supabase
       .from('matches')
       .select('*')
@@ -122,6 +124,15 @@ export default function Home() {
       .order('match_date', { ascending: true });
 
     if (mtchs) setMatches(mtchs);
+
+    // Tüm bitmiş maçlar (Geçmiş form analizi için)
+    const { data: finished } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('is_finished', true)
+      .order('match_date', { ascending: false });
+
+    if (finished) setAllFinishedMatches(finished);
 
     const { data: allPreds } = await supabase.from('predictions').select('*');
     if (allPreds) setAllPredictions(allPreds);
@@ -273,6 +284,36 @@ export default function Home() {
     if (activeUser && isAuthenticated) fetchUserPredictions(activeUser.id);
   }
 
+  function toggleAccordion(matchId: number) {
+    setExpandedMatches(prev => ({
+      ...prev,
+      [matchId]: !prev[matchId]
+    }));
+  }
+
+  // Bir takımın oynadığı bitmiş maçları en yeniden en eskiye doğru çeker
+  function getTeamPastMatches(teamName: string, currentMatchId: number) {
+    return allFinishedMatches
+      .filter(m => m.id !== currentMatchId && (m.home_team === teamName || m.away_team === teamName))
+      .sort((a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime());
+  }
+
+  // Galibiyet / Beraberlik / Mağlubiyet rozeti
+  function getMatchOutcomeBadge(teamName: string, m: Match) {
+    if (m.home_score === null || m.away_score === null) return null;
+    const isHome = m.home_team === teamName;
+    const teamGoals = isHome ? m.home_score : m.away_score;
+    const opponentGoals = isHome ? m.away_score : m.home_score;
+
+    if (teamGoals > opponentGoals) {
+      return <span className="bg-emerald-500/20 text-emerald-400 font-black text-[10px] px-1.5 py-0.2 rounded border border-emerald-500/30">G</span>;
+    } else if (teamGoals < opponentGoals) {
+      return <span className="bg-red-500/20 text-red-400 font-black text-[10px] px-1.5 py-0.2 rounded border border-red-500/30">M</span>;
+    } else {
+      return <span className="bg-amber-500/20 text-amber-300 font-black text-[10px] px-1.5 py-0.2 rounded border border-amber-500/30">B</span>;
+    }
+  }
+
   const sortedProfiles = [...profiles].sort((a, b) => b.total_points - a.total_points);
   const currentStageLabel = TOURNAMENT_STAGES.find((s) => s.id === activeWeek)?.label || `${activeWeek}. Hafta`;
 
@@ -284,7 +325,7 @@ export default function Home() {
         <header className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow">
           <div>
             <h1 className="text-xl font-black text-white flex items-center gap-2">
-              ⚽ UCL Tahmin Ligi
+              ⚽ Guess to Win
             </h1>
             <p className="text-xs text-slate-400">Şampiyonlar Ligi & Avrupa Ligi 2026/27</p>
           </div>
@@ -317,7 +358,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* PIN GİRİŞ / BELİRLEME KARTI */}
+        {/* PIN GİRİŞ KARTI */}
         {!isAuthenticated && activeUser && (
           <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${
             !activeUser.pin 
@@ -362,7 +403,7 @@ export default function Home() {
         )}
         {pinError && <p className="text-xs text-red-400 font-semibold text-center">{pinError}</p>}
 
-        {/* HAFTA SEÇİCİ (SCHEDULE) */}
+        {/* HAFTA SEÇİCİ */}
         <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-2xl">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
             <span className="text-slate-400 font-bold px-2 flex items-center gap-1">
@@ -384,10 +425,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 2 SÜTUNLU DÜZEN */}
+        {/* 2 SÜTUNLU ANA ALAN */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* SOL: MAÇLAR & ADMIN */}
+          {/* SOL: MAÇLAR */}
           <div className="lg:col-span-8 space-y-4">
             
             {/* KİLİT BANDI */}
@@ -412,50 +453,61 @@ export default function Home() {
                 <span className="text-xs text-slate-500">{matches.length} Maç</span>
               </div>
 
-              {matches.length === 0 ? (
-                <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-2xl text-center space-y-2">
-                  <p className="text-sm text-slate-300 font-bold">{currentStageLabel} için henüz maç girilmedi.</p>
-                  <p className="text-xs text-slate-500">Fikstür açıklandıkça buraya eklenecektir.</p>
-                </div>
-              ) : (
-                matches.map((m) => {
-                  const pred = myPredictions[m.id];
-                  const canEdit = isAuthenticated && !isLocked && !m.is_finished;
+              {matches.map((m) => {
+                const pred = myPredictions[m.id];
+                const canEdit = isAuthenticated && !isLocked && !m.is_finished;
+                const isExpanded = Boolean(expandedMatches[m.id]);
 
-                  return (
-                    <div key={m.id} className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-sm hover:border-slate-700 transition">
-                      
-                      {/* ÜST BİLGİ & ROZETLER */}
+                const homePast = getTeamPastMatches(m.home_team, m.id);
+                const awayPast = getTeamPastMatches(m.away_team, m.id);
+
+                return (
+                  <div key={m.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm hover:border-slate-700 transition">
+                    
+                    <div className="p-4 space-y-3">
+                      {/* ÜST BİLGİ & AÇILIR OK BUTONU */}
                       <div className="flex items-center justify-between text-xs">
-                        {m.multiplier === 3 ? (
-                          <span className="bg-red-500/20 text-red-400 border border-red-500/30 font-black px-2 py-0.5 rounded">
-                            🔥 GALATASARAY (x3 PUAN)
-                          </span>
-                        ) : m.multiplier > 1 ? (
-                          <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black px-2 py-0.5 rounded">
-                            ⭐ x{m.multiplier} PUAN MAÇI
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">Standart Maç</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {m.multiplier === 3 ? (
+                            <span className="bg-red-500/20 text-red-400 border border-red-500/30 font-black px-2 py-0.5 rounded">
+                              🔥 GALATASARAY (x3 PUAN)
+                            </span>
+                          ) : m.multiplier > 1 ? (
+                            <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black px-2 py-0.5 rounded">
+                              ⭐ x{m.multiplier} PUAN MAÇI
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">Standart Maç</span>
+                          )}
 
-                        {m.is_finished ? (
-                          <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Maç Sonuçlandı
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 text-[11px]">
-                            {new Date(m.match_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                          </span>
-                        )}
+                          {m.is_finished ? (
+                            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Sonuçlandı
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 text-[11px]">
+                              {new Date(m.match_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* GEÇMİŞ MAÇLAR / FORM AÇMA OKU */}
+                        <button
+                          onClick={() => toggleAccordion(m.id)}
+                          className="flex items-center gap-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 px-2 py-1 rounded-lg text-slate-300 transition text-[11px] font-semibold"
+                          title="Takımların son maçlarını gör"
+                        >
+                          <History className="w-3 h-3 text-blue-400" />
+                          <span>Son Maçlar</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-400' : 'text-slate-400'}`} />
+                        </button>
                       </div>
 
-                      {/* MAÇ ORTA ALANI: BİTMİŞ İSE SKORBOARD, OYNANMAMIŞ İSE GİRİŞ KUTUSU */}
+                      {/* MAÇ ORTA ALANI */}
                       <div className="grid grid-cols-3 items-center gap-2">
                         <span className="text-right font-bold text-sm text-white truncate">{m.home_team}</span>
                         
                         {m.is_finished ? (
-                          // BİTMİŞ MAÇ GÖRÜNÜMÜ: GERÇEK SKOR + SENİN TAHMİNİN
                           <div className="flex flex-col items-center justify-center">
                             <div className="text-xl font-black text-white tracking-widest bg-slate-950 px-4 py-1 rounded-xl border border-slate-700 shadow-inner">
                               {m.home_score} - {m.away_score}
@@ -469,7 +521,6 @@ export default function Home() {
                             </div>
                           </div>
                         ) : (
-                          // OYNANMAMIŞ MAÇ: TAHMİN GİRİŞ KUTULARI
                           <div className="flex items-center justify-center gap-2">
                             <input
                               type="number"
@@ -527,7 +578,7 @@ export default function Home() {
                           </div>
                         ) : (
                           <div className="text-[11px] text-slate-400">
-                            Maçta Kırmızı Kart: {m.has_red_card ? <b className="text-red-400">VAR (🟥)</b> : <b className="text-slate-500">YOK</b>}
+                            Maçta Kırmızı: {m.has_red_card ? <b className="text-red-400">VAR (🟥)</b> : <b className="text-slate-500">YOK</b>}
                           </div>
                         )}
 
@@ -585,9 +636,64 @@ export default function Home() {
                         )}
                       </div>
                     </div>
-                  );
-                })
-              )}
+
+                    {/* AÇILIR PANEL: İKİ TAKIMIN DA EN SON YAPTIĞI MAÇLAR (EN YENİDEN EN ESKİYE) */}
+                    {isExpanded && (
+                      <div className="bg-slate-950 border-t border-slate-800 p-3.5 space-y-3 text-xs animate-in fade-in duration-200">
+                        <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 pb-1 border-b border-slate-800/60">
+                          <History className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Turnuva Performans Geçmişi (En son oynanan maç en üsttedir)</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          
+                          {/* EV SAHİBİ SON MAÇLARI */}
+                          <div className="space-y-1.5">
+                            <span className="font-bold text-white text-[11px] block">{m.home_team} — Son Maçlar:</span>
+                            {homePast.length === 0 ? (
+                              <p className="text-[11px] text-slate-500 italic">Henüz tamamlanan maç kaydı yok.</p>
+                            ) : (
+                              homePast.map((pm) => (
+                                <div key={pm.id} className="flex items-center justify-between bg-slate-900/80 p-1.5 rounded-lg border border-slate-800/80 text-[11px]">
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    {getMatchOutcomeBadge(m.home_team, pm)}
+                                    <span className="text-slate-400 truncate">
+                                      {pm.home_team} <b className="text-white">{pm.home_score}-{pm.away_score}</b> {pm.away_team}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-500 ml-1 whitespace-nowrap">{pm.week_number}. Hafta</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* DEPLASMAN SON MAÇLARI */}
+                          <div className="space-y-1.5">
+                            <span className="font-bold text-white text-[11px] block">{m.away_team} — Son Maçlar:</span>
+                            {awayPast.length === 0 ? (
+                              <p className="text-[11px] text-slate-500 italic">Henüz tamamlanan maç kaydı yok.</p>
+                            ) : (
+                              awayPast.map((pm) => (
+                                <div key={pm.id} className="flex items-center justify-between bg-slate-900/80 p-1.5 rounded-lg border border-slate-800/80 text-[11px]">
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    {getMatchOutcomeBadge(m.away_team, pm)}
+                                    <span className="text-slate-400 truncate">
+                                      {pm.home_team} <b className="text-white">{pm.home_score}-{pm.away_score}</b> {pm.away_team}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-500 ml-1 whitespace-nowrap">{pm.week_number}. Hafta</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })}
             </section>
 
             {/* ADMIN PANELİ */}
@@ -640,10 +746,9 @@ export default function Home() {
 
           </div>
 
-          {/* SAĞ: PUAN TABLOSU & DETAYLI KURALLAR */}
+          {/* SAĞ: PUAN TABLOSU & RESMİ KURALLAR */}
           <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
             
-            {/* LİDERLİK TABLOSU */}
             <section className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
                 <h2 className="text-sm font-bold text-white flex items-center gap-2">
@@ -686,7 +791,7 @@ export default function Home() {
                             )}
                           </div>
                           {p.has_won_championship && (
-                            <p className="text-[10px] text-amber-400 font-bold">🏆 ŞAMPİYON</p>
+                            <p className="text-[10px] text-amber-400 font-bold">🏆 ÖNCEKİ ŞAMPİYON</p>
                           )}
                         </div>
                       </div>
@@ -705,7 +810,7 @@ export default function Home() {
               </div>
             </section>
 
-            {/* DETAYLI PUANLAMA KILAVUZU (RESMİ LİG KURALLARI) */}
+            {/* RESMİ KURALLAR */}
             <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-3">
               <h3 className="font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
                 <HelpCircle className="w-4 h-4 text-blue-400" /> Resmi Lig Puanlama Kuralları
@@ -732,7 +837,7 @@ export default function Home() {
                     Bir oyuncu <b className="text-white">Tam Skor</b> bildiğinde; kazanan tarafı dahi bilemeyen rakipler <b className="text-red-400 font-bold">-10 Puan</b> ceza alır!
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    *(Eğer rakip de en azından kazanan tarafı bildiyse ceza yemez, +3P alır).*
+                    *(Rakip en azından kazanan tarafı bildiyse ceza almaz, +3P kazanır).*
                   </p>
                 </div>
 
