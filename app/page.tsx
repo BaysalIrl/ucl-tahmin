@@ -944,7 +944,7 @@ export default function Home() {
               </div>
             </section>
 
-            {/* RESMİ KURALLAR */}
+{/* RESMİ KURALLAR */}
             <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-3">
               <h3 className="font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
                 <HelpCircle className="w-4 h-4 text-blue-400" /> Resmi Lig Puanlama Kuralları
@@ -961,6 +961,10 @@ export default function Home() {
                     <li className="flex items-center justify-between">
                       <span>• Tam Skor İsabeti:</span>
                       <b className="text-emerald-400 font-bold">+6 Puan</b>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span>• İlk Doğru Skor (Haftanın İlk İsabeti):</span>
+                      <b className="text-amber-400 font-bold">+6 Puan (+ x2 Bonusu)</b>
                     </li>
                   </ul>
                 </div>
@@ -994,9 +998,9 @@ export default function Home() {
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80">
-                  <b className="text-white block mb-0.5">4. Galatasaray Çarpanı:</b>
+                  <b className="text-white block mb-0.5">4. Takım Çarpanları:</b>
                   <p className="text-[11px] text-slate-400">
-                    • <b className="text-red-400 font-bold">Galatasaray</b> maçlarında tüm puanlar <b className="text-white font-bold">x3</b> ile katlanır (Tam Skor: +18P / Ceza: -30P).
+                    • <b className="text-red-400 font-bold">Galatasaray ve Beşiktaş</b> maçlarında tüm puanlar <b className="text-white font-bold">x3</b> ile katlanır.
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
                     • Kapanış: <b className="text-white">Her maçın kendi gününde 17:30 (İrlanda Saati)</b>.
