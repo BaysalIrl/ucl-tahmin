@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Trophy, Flame, ChevronDown, Lock, EyeOff, ShieldCheck } from 'lucide-react';
+import { Trophy, Flame, ChevronDown, Lock, EyeOff, ShieldCheck, KeyRound, LogOut, Sparkles } from 'lucide-react';
 
 interface Profile {
   id: string;
   username: string;
+  pin: string | null;
   total_points: number;
   has_won_championship: boolean;
 }
@@ -36,12 +37,16 @@ interface Prediction {
   earned_points?: number;
 }
 
-// 1. HAFTA İÇİN İRLANDA SAATİYLE KİLİTLENME ZAMANI: 8 Eylül 2026 Salı 17:30 (UTC+1)
+// 1. HAFTA KİLİTLENME ZAMANI: Salı 17:30 İrlanda Saati (UTC+1)
 const DEADLINE = new Date('2026-09-08T17:30:00+01:00');
 
 export default function Home() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeUser, setActiveUser] = useState<Profile | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [pinInput, setPinInput] = useState<string>('');
+  const [pinError, setPinError] = useState<string>('');
+
   const [matches, setMatches] = useState<Match[]>([]);
   const [myPredictions, setMyPredictions] = useState<Record<number, Prediction>>({});
   const [allPredictions, setAllPredictions] = useState<Prediction[]>([]);
@@ -51,25 +56,17 @@ export default function Home() {
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
-    // Kilit kontrolü: Şu anki saat Salı 17:30'u geçti mi?
     const checkLock = () => {
       setIsLocked(new Date() >= DEADLINE);
     };
     checkLock();
-    const interval = setInterval(checkLock, 10000); // 10 saniyede bir saati kontrol eder
+    const interval = setInterval(checkLock, 10000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     fetchInitialData();
   }, [activeWeek]);
-
-  useEffect(() => {
-    if (activeUser) {
-      localStorage.setItem('ucl_user_id', activeUser.id);
-      fetchUserPredictions(activeUser.id);
-    }
-  }, [activeUser]);
 
   async function fetchInitialData() {
     const { data: profs } = await supabase
@@ -79,9 +76,19 @@ export default function Home() {
 
     if (profs && profs.length > 0) {
       setProfiles(profs);
+
       const savedUserId = localStorage.getItem('ucl_user_id');
-      const found = profs.find((p) => p.id === savedUserId);
-      setActiveUser(found || profs[0]);
+      const savedPin = localStorage.getItem('ucl_user_pin');
+      const matched = profs.find((p) => p.id === savedUserId);
+
+      if (matched && matched.pin && savedPin === matched.pin) {
+        setActiveUser(matched);
+        setIsAuthenticated(true);
+        fetchUserPredictions(matched.id);
+      } else {
+        setActiveUser(matched || profs[0]);
+        setIsAuthenticated(false);
+      }
     }
 
     const { data: mtchs } = await supabase
@@ -92,7 +99,6 @@ export default function Home() {
 
     if (mtchs) setMatches(mtchs);
 
-    // Tüm tahminleri çek (Kilitlendikten sonra rakipleri göstermek için)
     const { data: allPreds } = await supabase.from('predictions').select('*');
     if (allPreds) setAllPredictions(allPreds);
   }
@@ -108,8 +114,71 @@ export default function Home() {
     }
   }
 
+  function handleSelectUser(user: Profile) {
+    setActiveUser(user);
+    const savedUserId = localStorage.getItem('ucl_user_id');
+    const savedPin = localStorage.getItem('ucl_user_pin');
+
+    if (user.pin && savedUserId === user.id && savedPin === user.pin) {
+      setIsAuthenticated(true);
+      fetchUserPredictions(user.id);
+    } else {
+      setIsAuthenticated(false);
+      setPinInput('');
+      setPinError('');
+    }
+  }
+
+  // İlk PIN belirleme veya var olan PIN ile giriş yapma
+  async function handlePinAction() {
+    if (!activeUser) return;
+    if (pinInput.trim().length !== 4) {
+      setPinError('PIN kodu tam olarak 4 haneli olmalıdır!');
+      return;
+    }
+
+    // Durum 1: Kullanıcı ilk kez PIN belirliyor
+    if (!activeUser.pin) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ pin: pinInput.trim() })
+        .eq('id', activeUser.id);
+
+      if (error) {
+        setPinError('PIN kaydedilemedi: ' + error.message);
+        return;
+      }
+
+      localStorage.setItem('ucl_user_id', activeUser.id);
+      localStorage.setItem('ucl_user_pin', pinInput.trim());
+      setIsAuthenticated(true);
+      setPinError('');
+      alert(`PIN kodun "${pinInput.trim()}" olarak belirlendi. Sakın unutma!`);
+      fetchInitialData();
+      return;
+    }
+
+    // Durum 2: Zaten PIN'i var, doğrulama yapılıyor
+    if (pinInput.trim() === activeUser.pin) {
+      localStorage.setItem('ucl_user_id', activeUser.id);
+      localStorage.setItem('ucl_user_pin', activeUser.pin);
+      setIsAuthenticated(true);
+      setPinError('');
+      fetchUserPredictions(activeUser.id);
+    } else {
+      setPinError('Hatalı PIN kodu! Tekrar deneyin.');
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('ucl_user_id');
+    localStorage.removeItem('ucl_user_pin');
+    setIsAuthenticated(false);
+    setPinInput('');
+  }
+
   function handlePredChange(matchId: number, field: string, value: any) {
-    if (isLocked) return;
+    if (isLocked || !isAuthenticated) return;
     setMyPredictions((prev) => ({
       ...prev,
       [matchId]: {
@@ -127,13 +196,16 @@ export default function Home() {
   }
 
   async function savePrediction(matchId: number) {
+    if (!isAuthenticated) {
+      alert('Tahmin kaydetmek için önce PIN kodunuzu girmelisiniz!');
+      return;
+    }
     if (isLocked) {
       alert('Süre doldu! Salı 17:30 İrlanda saati itibarıyla tahminler kilitlenmiştir.');
       return;
     }
-    if (!activeUser) return;
     const p = myPredictions[matchId];
-    if (!p) return;
+    if (!p || !activeUser) return;
 
     const payload = {
       user_id: activeUser.id,
@@ -146,7 +218,7 @@ export default function Home() {
 
     const { error } = await supabase.from('predictions').upsert(payload, { onConflict: 'user_id,match_id' });
     if (!error) {
-      alert('Tahmin başarıyla kaydedildi!');
+      alert('Tahmin kaydedildi!');
       fetchUserPredictions(activeUser.id);
       fetchInitialData();
     } else {
@@ -177,27 +249,26 @@ export default function Home() {
     await supabase.rpc('calculate_week_points', { target_week: activeWeek });
     alert(`${match.home_team} - ${match.away_team} maçı sonuçlandı!`);
     fetchInitialData();
-    if (activeUser) fetchUserPredictions(activeUser.id);
+    if (activeUser && isAuthenticated) fetchUserPredictions(activeUser.id);
   }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-3 md:p-6 font-sans">
       <div className="max-w-4xl mx-auto space-y-6">
         
-        {/* ÜST PANEL / OYUNCU SEÇİMİ */}
-        <header className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+        {/* ÜST PANEL */}
+        <header className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow">
           <div>
             <h1 className="text-xl font-black text-white">⚽ UCL Tahmin Ligi</h1>
-            <p className="text-xs text-slate-400">Şampiyonlar Ligi 2026/27</p>
+            <p className="text-xs text-slate-400">Şampiyonlar Ligi & Avrupa Ligi 2026/27</p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Sen Kimsin?</span>
             <div className="flex gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
               {profiles.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setActiveUser(p)}
+                  onClick={() => handleSelectUser(p)}
                   className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
                     activeUser?.id === p.id ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
                   }`}
@@ -206,25 +277,79 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            {isAuthenticated && (
+              <button
+                onClick={handleLogout}
+                title="PIN Çıkışı Yap"
+                className="p-2 text-slate-400 hover:text-red-400 bg-slate-950 rounded-xl border border-slate-800 transition"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </header>
 
-        {/* KİLİT DURUMU BİLGİLENDİRMESİ */}
+        {/* PIN GİRİŞ VEYA YENİ PIN BELİRLEME KARTI */}
+        {!isAuthenticated && activeUser && (
+          <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${
+            !activeUser.pin 
+              ? 'bg-amber-950/40 border-amber-800/60' 
+              : 'bg-blue-950/40 border-blue-800/60'
+          }`}>
+            <div className="flex items-center gap-3">
+              {!activeUser.pin ? (
+                <Sparkles className="w-6 h-6 text-amber-400" />
+              ) : (
+                <KeyRound className="w-6 h-6 text-blue-400" />
+              )}
+              <div>
+                <h3 className="text-sm font-bold text-white">
+                  {!activeUser.pin 
+                    ? `Hoş geldin ${activeUser.username}! İlk Girişin İçin PIN Belirle` 
+                    : `${activeUser.username} Olarak Giriş Yap`}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {!activeUser.pin 
+                    ? 'Hesabını korumak için 4 haneli bir şifre belirle. Sonraki tüm girişlerinde bu PIN geçerli olacak.' 
+                    : 'Tahmin girmek veya değiştirmek için 4 haneli PIN kodunu girin.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                maxLength={4}
+                placeholder="4 Hane"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                className="w-24 bg-slate-950 border border-slate-700 text-center font-black rounded-xl p-2 text-white outline-none tracking-widest text-sm"
+              />
+              <button
+                onClick={handlePinAction}
+                className={`text-xs font-bold px-4 py-2.5 rounded-xl transition text-white ${
+                  !activeUser.pin ? 'bg-amber-600 hover:bg-amber-500' : 'bg-blue-600 hover:bg-blue-500'
+                }`}
+              >
+                {!activeUser.pin ? 'PIN Kaydet' : 'Giriş'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {pinError && <p className="text-xs text-red-400 font-semibold text-center">{pinError}</p>}
+
+        {/* KİLİT BİLGİLENDİRMESİ */}
         <div className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-          isLocked 
-            ? 'bg-red-500/10 border-red-500/30 text-red-300' 
-            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+          isLocked ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
         }`}>
           <div className="flex items-center gap-2 font-bold">
             {isLocked ? <Lock className="w-4 h-4 text-red-400" /> : <ShieldCheck className="w-4 h-4 text-emerald-400" />}
-            <span>
-              {isLocked 
-                ? 'Tahminler Kilitlendi! (Salı 17:30 İrlanda saati geçti)' 
-                : 'Tahminler Açık — Kapanış: Salı 17:30 (İrlanda Saati)'}
-            </span>
+            <span>{isLocked ? 'Tahminler Kilitlendi (Salı 17:30 doldu)' : 'Tahminler Açık — Kapanış: Salı 17:30 (İrlanda Saati)'}</span>
           </div>
           <span className="font-semibold text-[11px] opacity-80">
-            {isLocked ? 'Herkesin tahminleri açıldı' : 'Tahminler gizli tutuluyor'}
+            {isLocked ? 'Tüm tahminler açıldı' : 'Tahminler gizli tutuluyor'}
           </span>
         </div>
 
@@ -247,7 +372,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* MAÇLAR & TAHMİN KARTLARI */}
+        {/* MAÇ LİSTESİ */}
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <Flame className="w-4 h-4 text-orange-400" /> 1. Hafta Maçları
@@ -260,6 +385,8 @@ export default function Home() {
               pred_red_card: false,
               pred_red_card_team: 'NONE',
             };
+
+            const canEdit = isAuthenticated && !isLocked;
 
             return (
               <div key={m.id} className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
@@ -278,51 +405,49 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Skor Tahmin Alanı */}
                 <div className="grid grid-cols-3 items-center gap-2">
                   <span className="text-right font-bold text-sm text-white">{m.home_team}</span>
                   <div className="flex items-center justify-center gap-2">
                     <input
                       type="number"
                       min="0"
-                      disabled={isLocked}
-                      value={pred.pred_home_score}
+                      disabled={!canEdit}
+                      value={isAuthenticated ? pred.pred_home_score : 0}
                       onChange={(e) => handlePredChange(m.id, 'pred_home_score', e.target.value)}
                       className={`w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
-                        isLocked ? 'opacity-60 cursor-not-allowed' : 'focus:border-blue-500'
+                        !canEdit ? 'opacity-50 cursor-not-allowed' : 'focus:border-blue-500'
                       }`}
                     />
                     <span>-</span>
                     <input
                       type="number"
                       min="0"
-                      disabled={isLocked}
-                      value={pred.pred_away_score}
+                      disabled={!canEdit}
+                      value={isAuthenticated ? pred.pred_away_score : 0}
                       onChange={(e) => handlePredChange(m.id, 'pred_away_score', e.target.value)}
                       className={`w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
-                        isLocked ? 'opacity-60 cursor-not-allowed' : 'focus:border-blue-500'
+                        !canEdit ? 'opacity-50 cursor-not-allowed' : 'focus:border-blue-500'
                       }`}
                     />
                   </div>
                   <span className="text-left font-bold text-sm text-white">{m.away_team}</span>
                 </div>
 
-                {/* Kırmızı Kart ve Kaydetme */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
                   <div className="flex items-center gap-2">
                     <label className="flex items-center gap-1.5 cursor-pointer text-slate-300">
                       <input
                         type="checkbox"
-                        disabled={isLocked}
-                        checked={pred.pred_red_card}
+                        disabled={!canEdit}
+                        checked={isAuthenticated ? pred.pred_red_card : false}
                         onChange={(e) => handlePredChange(m.id, 'pred_red_card', e.target.checked)}
                         className="w-3.5 h-3.5 accent-red-600"
                       />
                       🟥 Kırmızı Kart (+3P / -2P)
                     </label>
-                    {pred.pred_red_card && (
+                    {pred.pred_red_card && isAuthenticated && (
                       <select
-                        disabled={isLocked}
+                        disabled={!canEdit}
                         value={pred.pred_red_card_team}
                         onChange={(e) => handlePredChange(m.id, 'pred_red_card_team', e.target.value)}
                         className="bg-slate-950 border border-slate-700 text-[11px] p-1 rounded text-slate-300"
@@ -333,9 +458,9 @@ export default function Home() {
                       </select>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
-                    {pred.earned_points !== undefined && m.is_finished && (
+                    {pred.earned_points !== undefined && m.is_finished && isAuthenticated && (
                       <span className={`font-black px-2 py-0.5 rounded text-xs ${
                         pred.earned_points >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
                       }`}>
@@ -343,7 +468,7 @@ export default function Home() {
                       </span>
                     )}
 
-                    {!isLocked && (
+                    {canEdit && (
                       <button
                         onClick={() => savePrediction(m.id)}
                         className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg transition"
@@ -354,11 +479,10 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* RAKİP TAHMİNLERİ BÖLÜMÜ (KOPYA KORUMASI) */}
+                {/* DİĞER OYUNCULAR (KOPYA KORUMASI) */}
                 <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
                   <span className="text-slate-500 font-medium">Diğer Oyuncular:</span>
                   {isLocked ? (
-                    // Kilit açıldıktan sonra herkesinkini göster
                     <div className="flex gap-2">
                       {profiles
                         .filter((p) => p.id !== activeUser?.id)
@@ -376,7 +500,6 @@ export default function Home() {
                         })}
                     </div>
                   ) : (
-                    // Kilit saatine kadar gizli tut
                     <span className="flex items-center gap-1 text-slate-500 italic">
                       <EyeOff className="w-3 h-3 text-slate-500" /> Tahminler Salı 17:30'a kadar gizlidir
                     </span>
@@ -387,7 +510,7 @@ export default function Home() {
           })}
         </section>
 
-        {/* ADMIN MODU (GİZLİ YÖNETİM) */}
+        {/* ADMIN MODU */}
         <section className="border border-slate-800 rounded-xl p-3 bg-slate-900/30 text-xs">
           <button
             onClick={() => setShowAdmin(!showAdmin)}
