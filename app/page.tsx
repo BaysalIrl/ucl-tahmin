@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Trophy, Flame, ChevronDown, Lock, EyeOff, ShieldCheck, 
-  KeyRound, LogOut, Sparkles, Medal, Calendar, HelpCircle, CheckCircle2, History
+  KeyRound, LogOut, Sparkles, Medal, Calendar, HelpCircle, CheckCircle2, History, Timer
 } from 'lucide-react';
 
 interface Profile {
@@ -42,54 +42,37 @@ interface Prediction {
 
 // 38 TAKIMIN LOGO HARİTASI
 const TEAM_LOGOS: Record<string, string> = {
-  // Türk Takımları
   'Galatasaray': 'https://crests.football-data.org/610.png',
   'Fenerbahçe': 'https://crests.football-data.org/613.png',
   'Beşiktaş': 'https://crests.football-data.org/600.png',
-
-  // İspanya
   'Real Madrid': 'https://crests.football-data.org/86.png',
   'Barcelona': 'https://crests.football-data.org/81.png',
   'Atlético Madrid': 'https://crests.football-data.org/78.png',
   'Atlético': 'https://crests.football-data.org/78.png',
   'Villarreal': 'https://crests.football-data.org/94.png',
   'Real Betis': 'https://crests.football-data.org/90.png',
-
-  // İngiltere
   'Man City': 'https://crests.football-data.org/65.png',
   'Liverpool': 'https://crests.football-data.org/64.png',
   'Arsenal': 'https://crests.football-data.org/57.png',
   'Aston Villa': 'https://crests.football-data.org/58.png',
   'Man United': 'https://crests.football-data.org/66.png',
-
-  // Almanya
   'Bayern': 'https://crests.football-data.org/5.png',
   'Dortmund': 'https://crests.football-data.org/4.png',
   'Leipzig': 'https://crests.football-data.org/721.png',
   'Stuttgart': 'https://crests.football-data.org/10.png',
-
-  // Fransa
   'PSG': 'https://crests.football-data.org/524.png',
   'Marseille': 'https://crests.football-data.org/516.png',
   'Lille': 'https://crests.football-data.org/521.png',
   'Lens': 'https://crests.football-data.org/546.png',
-
-  // İtalya
   'Inter': 'https://crests.football-data.org/108.png',
   'Napoli': 'https://crests.football-data.org/113.png',
   'Roma': 'https://crests.football-data.org/100.png',
   'Como': 'https://crests.football-data.org/1077.png',
-
-  // Portekiz
   'Porto': 'https://crests.football-data.org/503.png',
   'Sporting CP': 'https://crests.football-data.org/498.png',
   'Sporting': 'https://crests.football-data.org/498.png',
-
-  // Hollanda
   'Feyenoord': 'https://crests.football-data.org/675.png',
   'PSV': 'https://crests.football-data.org/674.png',
-
-  // Diğer Avrupa Kulüpleri
   'Club Brugge': 'https://crests.football-data.org/851.png',
   'Shakhtar': 'https://crests.football-data.org/1887.png',
   'Shakhtar Donetsk': 'https://crests.football-data.org/1887.png',
@@ -146,8 +129,6 @@ const TOURNAMENT_STAGES = [
   { id: 13, label: 'BÜYÜK FİNAL 🏆' },
 ];
 
-const DEADLINE = new Date('2026-09-08T17:30:00+01:00');
-
 export default function Home() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeUser, setActiveUser] = useState<Profile | null>(null);
@@ -164,24 +145,55 @@ export default function Home() {
   const [activeWeek, setActiveWeek] = useState<number>(1);
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminScores, setAdminScores] = useState<Record<number, any>>({});
-  const [isLocked, setIsLocked] = useState(false);
+  
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   useEffect(() => {
-    const checkLock = () => {
-      if (activeWeek === 1) {
-        setIsLocked(new Date() >= DEADLINE);
-      } else {
-        setIsLocked(false);
-      }
-    };
-    checkLock();
-    const interval = setInterval(checkLock, 10000);
-    return () => clearInterval(interval);
-  }, [activeWeek]);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetchInitialData();
   }, [activeWeek]);
+
+  function getMatchDeadline(matchDateStr: string): Date {
+    const d = new Date(matchDateStr);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return new Date(`${year}-${month}-${day}T17:30:00+01:00`);
+  }
+
+  function isMatchLocked(match: Match): boolean {
+    if (match.is_finished) return true;
+    const deadline = getMatchDeadline(match.match_date);
+    return currentTime >= deadline;
+  }
+
+  // Sıradaki en yakın kilit vaktini bulma
+  const nextDeadline = matches
+    .map(m => getMatchDeadline(m.match_date))
+    .filter(dl => dl > currentTime)
+    .sort((a, b) => a.getTime() - b.getTime())[0] || null;
+
+  // Akıllı Metin ve Sayaç Oluşturucu
+  function getSmartCountdownText() {
+    if (!nextDeadline) return 'Bu haftaki tüm maçlar kilitlendi!';
+    
+    const diff = nextDeadline.getTime() - currentTime.getTime();
+    if (diff <= 0) return 'Kilitlendi';
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    const dayName = nextDeadline.toLocaleDateString('tr-TR', { weekday: 'long' });
+
+    // Hangi gün kilitleniyorsa ona göre akıllı mesaj üretir
+    return `${dayName} maçları için son 17:30 (Kalan: ${timeStr})`;
+  }
 
   async function fetchInitialData() {
     const { data: profs } = await supabase
@@ -297,13 +309,13 @@ export default function Home() {
     setPinInput('');
   }
 
-  function handlePredChange(matchId: number, field: string, value: any) {
-    if (isLocked || !isAuthenticated) return;
+  function handlePredChange(match: Match, field: string, value: any) {
+    if (isMatchLocked(match) || !isAuthenticated) return;
     setMyPredictions((prev) => ({
       ...prev,
-      [matchId]: {
-        ...(prev[matchId] || {
-          match_id: matchId,
+      [match.id]: {
+        ...(prev[match.id] || {
+          match_id: match.id,
           user_id: activeUser!.id,
           pred_home_score: 0,
           pred_away_score: 0,
@@ -315,21 +327,21 @@ export default function Home() {
     }));
   }
 
-  async function savePrediction(matchId: number) {
+  async function savePrediction(match: Match) {
     if (!isAuthenticated) {
       alert('Tahmin kaydetmek için önce PIN kodunuzu girmelisiniz!');
       return;
     }
-    if (isLocked) {
-      alert('Süre doldu! Tahminler kilitlenmiştir.');
+    if (isMatchLocked(match)) {
+      alert('Bu maçın kilitlenme saati doldu (17:30 İrlanda Saati)!');
       return;
     }
-    const p = myPredictions[matchId];
+    const p = myPredictions[match.id];
     if (!p || !activeUser) return;
 
     const payload = {
       user_id: activeUser.id,
-      match_id: matchId,
+      match_id: match.id,
       pred_home_score: Number(p.pred_home_score),
       pred_away_score: Number(p.pred_away_score),
       pred_red_card: Boolean(p.pred_red_card),
@@ -429,7 +441,7 @@ export default function Home() {
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 font-medium mr-1">Profil:</span>
-            <div className="flex gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+            <div className="flex flex-wrap gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
               {profiles.map((p) => (
                 <button
                   key={p.id}
@@ -528,17 +540,19 @@ export default function Home() {
           {/* SOL: MAÇLAR */}
           <div className="lg:col-span-8 space-y-4">
             
-            {/* KİLİT BANDI */}
-            <div className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-              isLocked ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+            {/* AKILLI DİNAMİK KİLİT BANDI (METİN DEĞİŞTİREN SAYAÇ) */}
+            <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs transition ${
+              nextDeadline 
+                ? 'bg-blue-500/10 border-blue-500/30 text-blue-200' 
+                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
             }`}>
               <div className="flex items-center gap-2 font-bold">
-                {isLocked ? <Lock className="w-4 h-4 text-red-400" /> : <ShieldCheck className="w-4 h-4 text-emerald-400" />}
-                <span>{isLocked ? `${currentStageLabel} Kilitlendi` : `${currentStageLabel} Tahminleri Açık`}</span>
+                <Timer className="w-4 h-4 text-blue-400 animate-pulse" />
+                <span>Kademeli Kilit Sistemi (Her gün 17:30'da kapanır)</span>
               </div>
-              <span className="font-semibold text-[11px] opacity-80">
-                {isLocked ? 'Tahminler Açıklandı' : 'Salı 17:30 İrlanda Saatine Kadar Gizli'}
-              </span>
+              <div className="bg-slate-950/80 px-3 py-1 rounded-lg border border-blue-500/30 font-mono font-black text-white text-xs tracking-wide">
+                ⏱️ {getSmartCountdownText()}
+              </div>
             </div>
 
             {/* MAÇ LİSTESİ */}
@@ -552,38 +566,48 @@ export default function Home() {
 
               {matches.map((m) => {
                 const pred = myPredictions[m.id];
-                const canEdit = isAuthenticated && !isLocked && !m.is_finished;
+                const locked = isMatchLocked(m);
+                const canEdit = isAuthenticated && !locked && !m.is_finished;
                 const isExpanded = Boolean(expandedMatches[m.id]);
 
                 const homePast = getTeamPastMatches(m.home_team, m.id);
                 const awayPast = getTeamPastMatches(m.away_team, m.id);
 
+                const matchDateObj = new Date(m.match_date);
+                const dayLabel = matchDateObj.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' });
+
                 return (
                   <div key={m.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm hover:border-slate-700 transition">
                     
                     <div className="p-4 space-y-3">
-                      {/* ÜST BİLGİ */}
+                      {/* ÜST BİLGİ & DURUM ROZETİ */}
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           {m.multiplier === 3 ? (
                             <span className="bg-red-500/20 text-red-400 border border-red-500/30 font-black px-2 py-0.5 rounded">
-                              🔥 GALATASARAY (x3 PUAN)
+                              🔥 GALATASARAY (x3)
                             </span>
                           ) : m.multiplier > 1 ? (
                             <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black px-2 py-0.5 rounded">
-                              ⭐ x{m.multiplier} PUAN MAÇI
+                              ⭐ x{m.multiplier} PUAN
                             </span>
-                          ) : (
-                            <span className="text-slate-500">Standart Maç</span>
-                          )}
+                          ) : null}
+
+                          <span className="text-slate-400 font-semibold bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                            📅 {dayLabel}
+                          </span>
 
                           {m.is_finished ? (
                             <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-bold flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Sonuçlandı
+                              <CheckCircle2 className="w-3 h-3" /> Bitti
+                            </span>
+                          ) : locked ? (
+                            <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                              <Lock className="w-3 h-3" /> Kilitlendi
                             </span>
                           ) : (
-                            <span className="text-slate-500 text-[11px]">
-                              {new Date(m.match_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                            <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" /> Açık (17:30'a kadar)
                             </span>
                           )}
                         </div>
@@ -628,7 +652,7 @@ export default function Home() {
                               min="0"
                               disabled={!canEdit}
                               value={pred?.pred_home_score ?? 0}
-                              onChange={(e) => handlePredChange(m.id, 'pred_home_score', e.target.value)}
+                              onChange={(e) => handlePredChange(m, 'pred_home_score', e.target.value)}
                               className={`w-11 sm:w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
                                 !canEdit ? 'opacity-50 cursor-not-allowed' : 'focus:border-blue-500'
                               }`}
@@ -639,7 +663,7 @@ export default function Home() {
                               min="0"
                               disabled={!canEdit}
                               value={pred?.pred_away_score ?? 0}
-                              onChange={(e) => handlePredChange(m.id, 'pred_away_score', e.target.value)}
+                              onChange={(e) => handlePredChange(m, 'pred_away_score', e.target.value)}
                               className={`w-11 sm:w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
                                 !canEdit ? 'opacity-50 cursor-not-allowed' : 'focus:border-blue-500'
                               }`}
@@ -664,7 +688,7 @@ export default function Home() {
                                 type="checkbox"
                                 disabled={!canEdit}
                                 checked={pred?.pred_red_card ?? false}
-                                onChange={(e) => handlePredChange(m.id, 'pred_red_card', e.target.checked)}
+                                onChange={(e) => handlePredChange(m, 'pred_red_card', e.target.checked)}
                                 className="w-3.5 h-3.5 accent-red-600"
                               />
                               🟥 Kırmızı Kart (+3P / -2P)
@@ -673,7 +697,7 @@ export default function Home() {
                               <select
                                 disabled={!canEdit}
                                 value={pred?.pred_red_card_team ?? 'NONE'}
-                                onChange={(e) => handlePredChange(m.id, 'pred_red_card_team', e.target.value)}
+                                onChange={(e) => handlePredChange(m, 'pred_red_card_team', e.target.value)}
                                 className="bg-slate-950 border border-slate-700 text-[11px] p-1 rounded text-slate-300"
                               >
                                 <option value="NONE">Takım Önemsiz (+3P)</option>
@@ -706,7 +730,7 @@ export default function Home() {
 
                           {canEdit && (
                             <button
-                              onClick={() => savePrediction(m.id)}
+                              onClick={() => savePrediction(m)}
                               className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg transition"
                             >
                               Kaydet
@@ -715,11 +739,11 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* DİĞER OYUNCULAR (KOPYA KORUMASI) */}
+                      {/* DİĞER OYUNCULAR (GÜN KİLİTLENDİYSE GÖRÜNÜR) */}
                       <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
                         <span className="text-slate-500 font-medium">Diğer Oyuncular:</span>
-                        {isLocked || m.is_finished ? (
-                          <div className="flex gap-2">
+                        {locked || m.is_finished ? (
+                          <div className="flex flex-wrap gap-2">
                             {profiles
                               .filter((p) => p.id !== activeUser?.id)
                               .map((otherUser) => {
@@ -737,7 +761,7 @@ export default function Home() {
                           </div>
                         ) : (
                           <span className="flex items-center gap-1 text-slate-500 italic">
-                            <EyeOff className="w-3 h-3 text-slate-500" /> Kilitlenene kadar gizli
+                            <EyeOff className="w-3 h-3 text-slate-500" /> {dayLabel} 17:30'a kadar gizli
                           </span>
                         )}
                       </div>
@@ -798,7 +822,7 @@ export default function Home() {
               })}
             </section>
 
-            {/* ADMIN PANELİ (SADECE HÜSEYİN GİRİŞ YAPTIĞINDA GÖRÜNÜR) */}
+            {/* ADMIN PANELİ (SADECE HÜSEYİN) */}
             {isAuthenticated && activeUser?.username === 'Huseyin' && (
               <section className="border border-amber-500/30 rounded-2xl p-4 bg-amber-950/10 text-xs">
                 <button
@@ -975,7 +999,7 @@ export default function Home() {
                     • <b className="text-red-400 font-bold">Galatasaray</b> maçlarında tüm puanlar <b className="text-white font-bold">x3</b> ile katlanır (Tam Skor: +18P / Ceza: -30P).
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    • Kapanış: <b className="text-white">Salı 17:30 (İrlanda Saati)</b>.
+                    • Kapanış: <b className="text-white">Her maçın kendi gününde 17:30 (İrlanda Saati)</b>.
                   </p>
                 </div>
               </div>
