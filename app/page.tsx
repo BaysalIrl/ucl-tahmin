@@ -171,13 +171,11 @@ export default function Home() {
     return currentTime >= deadline;
   }
 
-  // Sıradaki en yakın kilit vaktini bulma
   const nextDeadline = matches
     .map(m => getMatchDeadline(m.match_date))
     .filter(dl => dl > currentTime)
     .sort((a, b) => a.getTime() - b.getTime())[0] || null;
 
-  // Akıllı Metin ve Sayaç Oluşturucu
   function getSmartCountdownText() {
     if (!nextDeadline) return 'Bu haftaki tüm maçlar kilitlendi!';
     
@@ -191,7 +189,6 @@ export default function Home() {
     const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     const dayName = nextDeadline.toLocaleDateString('tr-TR', { weekday: 'long' });
 
-    // Hangi gün kilitleniyorsa ona göre akıllı mesaj üretir
     return `${dayName} günü tahminleri için kalan süre: ${timeStr}`;
   }
 
@@ -540,7 +537,7 @@ export default function Home() {
           {/* SOL: MAÇLAR */}
           <div className="lg:col-span-8 space-y-4">
             
-            {/* AKILLI DİNAMİK KİLİT BANDI (METİN DEĞİŞTİREN SAYAÇ) */}
+            {/* AKILLI DİNAMİK KİLİT BANDI */}
             <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs transition ${
               nextDeadline 
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-200' 
@@ -548,7 +545,7 @@ export default function Home() {
             }`}>
               <div className="flex items-center gap-2 font-bold">
                 <Timer className="w-4 h-4 text-blue-400 animate-pulse" />
-                <span>Kademeli Kilit Sistemi (Her gün 17:30'da kapanır)</span>
+                <span>Kademeli Kilit Sistemi (Her maç kendi gününde 17:30'da kapanır)</span>
               </div>
               <div className="bg-slate-950/80 px-3 py-1 rounded-lg border border-blue-500/30 font-mono font-black text-white text-xs tracking-wide">
                 ⏱️ {getSmartCountdownText()}
@@ -576,6 +573,12 @@ export default function Home() {
                 const matchDateObj = new Date(m.match_date);
                 const dayLabel = matchDateObj.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' });
 
+                const isTurkishGiant = 
+                  m.home_team === 'Galatasaray' || m.away_team === 'Galatasaray' || 
+                  m.home_team === 'Beşiktaş' || m.away_team === 'Beşiktaş';
+                const turkishTeamName = 
+                  (m.home_team === 'Beşiktaş' || m.away_team === 'Beşiktaş') ? 'BEŞİKTAŞ' : 'GALATASARAY';
+
                 return (
                   <div key={m.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm hover:border-slate-700 transition">
                     
@@ -583,9 +586,9 @@ export default function Home() {
                       {/* ÜST BİLGİ & DURUM ROZETİ */}
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          {m.multiplier === 3 ? (
-                            <span className="bg-red-500/20 text-red-400 border border-red-500/30 font-black px-2 py-0.5 rounded">
-                              🔥 GALATASARAY (x3)
+                          {isTurkishGiant ? (
+                            <span className="bg-red-500/20 text-red-400 border border-red-500/30 font-black px-2 py-0.5 rounded flex items-center gap-1">
+                              🔥 {turkishTeamName} (x3)
                             </span>
                           ) : m.multiplier > 1 ? (
                             <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black px-2 py-0.5 rounded">
@@ -944,7 +947,7 @@ export default function Home() {
               </div>
             </section>
 
-{/* RESMİ KURALLAR */}
+            {/* RESMİ KURALLAR */}
             <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-3">
               <h3 className="font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
                 <HelpCircle className="w-4 h-4 text-blue-400" /> Resmi Lig Puanlama Kuralları
@@ -959,14 +962,21 @@ export default function Home() {
                       <b className="text-blue-400 font-bold">+3 Puan</b>
                     </li>
                     <li className="flex items-center justify-between">
-                      <span>• Tam Skor İsabeti:</span>
+                      <span>• 1. Tam Skor İsabeti:</span>
                       <b className="text-emerald-400 font-bold">+6 Puan</b>
                     </li>
                     <li className="flex items-center justify-between">
-                      <span>• İlk Doğru Skor (Haftanın İlk İsabeti):</span>
-                      <b className="text-amber-400 font-bold">+6 Puan (+ x2 Bonusu)</b>
+                      <span>• 2. Tam Skor İsabeti:</span>
+                      <b className="text-amber-400 font-bold">+12 Puan (x2 Katlama)</b>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span>• 3. Tam Skor İsabeti:</span>
+                      <b className="text-orange-400 font-bold">+24 Puan (x4 Katlama)</b>
                     </li>
                   </ul>
+                  <p className="text-[10px] text-amber-300/80 mt-1 pl-1 italic">
+                    * Katlamalı skor serisi her hafta sıfırlanır; aynı haftada bilinen her yeni skor bir öncekini ikiye katlar!
+                  </p>
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80">
@@ -998,9 +1008,9 @@ export default function Home() {
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80">
-                  <b className="text-white block mb-0.5">4. Takım Çarpanları:</b>
+                  <b className="text-white block mb-0.5">4. Türk Takımları x3 Çarpanı:</b>
                   <p className="text-[11px] text-slate-400">
-                    • <b className="text-red-400 font-bold">Galatasaray ve Beşiktaş</b> maçlarında tüm puanlar <b className="text-white font-bold">x3</b> ile katlanır.
+                    • <b className="text-red-400 font-bold">Galatasaray ve Beşiktaş</b> maçlarında tüm puanlar (ve cezalar) <b className="text-white font-bold">x3</b> ile katlanır (Örn: Tam Skor: +18P / Ceza: -30P).
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
                     • Kapanış: <b className="text-white">Her maçın kendi gününde 17:30 (İrlanda Saati)</b>.
