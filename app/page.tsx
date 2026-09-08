@@ -40,7 +40,7 @@ interface Prediction {
   earned_points?: number;
 }
 
-// 38 TAKIMIN RESMİ CDN LOGO HARİTASI (Kısa ve uzun isim varyasyonlarıyla)
+// 38 TAKIMIN LOGO HARİTASI
 const TEAM_LOGOS: Record<string, string> = {
   // Türk Takımları
   'Galatasaray': 'https://crests.football-data.org/610.png',
@@ -101,11 +101,11 @@ const TEAM_LOGOS: Record<string, string> = {
   'Slovan Bratislava': 'https://crests.football-data.org/2144.png',
   'Slovan': 'https://crests.football-data.org/2144.png',
   'AEK Athens': 'https://crests.football-data.org/611.png',
+  'AEK': 'https://crests.football-data.org/611.png',
   'Viking': 'https://crests.football-data.org/335.png',
   'Sabah': 'https://crests.football-data.org/8468.png',
 };
 
-// Takım Amblemi Bileşeni
 function TeamLogo({ name }: { name: string }) {
   const logoUrl = TEAM_LOGOS[name] || TEAM_LOGOS[name.trim()];
 
@@ -407,7 +407,7 @@ export default function Home() {
     <main className="min-h-screen bg-slate-950 text-slate-100 p-3 md:p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* ÜST PANEL / RESMİ UCL LOGOLU BAŞLIK */}
+        {/* ÜST BAŞLIK & LOGO */}
         <header className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow">
           <div className="flex items-center gap-3">
             <img
@@ -522,7 +522,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 2 SÜTUNLU ALAN */}
+        {/* 2 SÜTUNLU DÜZEN */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* SOL: MAÇLAR */}
@@ -599,10 +599,8 @@ export default function Home() {
                         </button>
                       </div>
 
-                      {/* MAÇ ORTA ALANI: [SEMBOL GS] - [PSG SEMBOL] */}
+                      {/* MAÇ ALANI */}
                       <div className="grid grid-cols-3 items-center gap-2">
-                        
-                        {/* EV SAHİBİ: SEMBOL + İSİM */}
                         <div className="flex items-center justify-end gap-2 min-w-0">
                           <TeamLogo name={m.home_team} />
                           <span className="font-bold text-xs sm:text-sm text-white truncate text-right">
@@ -610,7 +608,6 @@ export default function Home() {
                           </span>
                         </div>
                         
-                        {/* SKOR VEYA TAHMİN KUTUSU */}
                         {m.is_finished ? (
                           <div className="flex flex-col items-center justify-center">
                             <div className="text-xl font-black text-white tracking-widest bg-slate-950 px-4 py-1 rounded-xl border border-slate-700 shadow-inner">
@@ -650,7 +647,6 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* DEPLASMAN: İSİM + SEMBOL */}
                         <div className="flex items-center justify-start gap-2 min-w-0">
                           <span className="font-bold text-xs sm:text-sm text-white truncate text-left">
                             {m.away_team}
@@ -802,7 +798,7 @@ export default function Home() {
               })}
             </section>
 
-{/* ADMIN PANELİ (SADECE HÜSEYİN GİRİŞ YAPTIĞINDA GÖRÜNÜR) */}
+            {/* ADMIN PANELİ (SADECE HÜSEYİN GİRİŞ YAPTIĞINDA GÖRÜNÜR) */}
             {isAuthenticated && activeUser?.username === 'Huseyin' && (
               <section className="border border-amber-500/30 rounded-2xl p-4 bg-amber-950/10 text-xs">
                 <button
@@ -850,12 +846,13 @@ export default function Home() {
                           className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold text-[11px] transition"
                         >
                           Onayla
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
           </div>
 
