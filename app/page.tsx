@@ -802,47 +802,54 @@ export default function Home() {
               })}
             </section>
 
-            {/* ADMIN PANELİ */}
-            <section className="border border-slate-800 rounded-2xl p-4 bg-slate-900/40 text-xs">
-              <button
-                onClick={() => setShowAdmin(!showAdmin)}
-                className="flex items-center justify-between w-full font-bold text-slate-400 hover:text-white"
-              >
-                <span>⚙️ {currentStageLabel} Maç Sonucu Girişi (Admin)</span>
-                <ChevronDown className={`w-4 h-4 transition ${showAdmin ? 'rotate-180' : ''}`} />
-              </button>
-              {showAdmin && (
-                <div className="mt-3 space-y-2 pt-2 border-t border-slate-800">
-                  {matches.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                      <span className="font-bold text-white w-44 truncate">{m.home_team} - {m.away_team}</span>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          placeholder="Ev"
-                          className="w-10 bg-slate-900 border border-slate-700 p-1 text-center rounded text-white font-bold"
-                          onChange={(e) => setAdminScores(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), home_score: e.target.value } }))}
-                        />
-                        <span>-</span>
-                        <input
-                          type="number"
-                          placeholder="Dep"
-                          className="w-10 bg-slate-900 border border-slate-700 p-1 text-center rounded text-white font-bold"
-                          onChange={(e) => setAdminScores(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), away_score: e.target.value } }))}
-                        />
-                        <label className="flex items-center gap-1 ml-2 text-[11px] cursor-pointer">
+{/* ADMIN PANELİ (SADECE HÜSEYİN GİRİŞ YAPTIĞINDA GÖRÜNÜR) */}
+            {isAuthenticated && activeUser?.username === 'Huseyin' && (
+              <section className="border border-amber-500/30 rounded-2xl p-4 bg-amber-950/10 text-xs">
+                <button
+                  onClick={() => setShowAdmin(!showAdmin)}
+                  className="flex items-center justify-between w-full font-bold text-amber-400 hover:text-amber-300 transition"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" /> ⚙️ {currentStageLabel} Maç Sonucu Girişi (Yönetici Paneli)
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition ${showAdmin ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showAdmin && (
+                  <div className="mt-3 space-y-2 pt-2 border-t border-amber-500/20">
+                    <p className="text-[11px] text-slate-400 italic mb-2">
+                      * Sadece yönetici (Hüseyin) tarafından görüntülenebilir ve işlem yapılabilir.
+                    </p>
+                    {matches.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                        <span className="font-bold text-white w-44 truncate">{m.home_team} - {m.away_team}</span>
+                        <div className="flex items-center gap-1">
                           <input
-                            type="checkbox"
-                            onChange={(e) => setAdminScores(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), has_red_card: e.target.checked } }))}
+                            type="number"
+                            placeholder="Ev"
+                            className="w-10 bg-slate-900 border border-slate-700 p-1 text-center rounded text-white font-bold"
+                            onChange={(e) => setAdminScores(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), home_score: e.target.value } }))}
                           />
-                          🟥
-                        </label>
-                      </div>
-                      <button
-                        onClick={() => submitMatchResult(m)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold text-[11px] transition"
-                      >
-                        Onayla
+                          <span>-</span>
+                          <input
+                            type="number"
+                            placeholder="Dep"
+                            className="w-10 bg-slate-900 border border-slate-700 p-1 text-center rounded text-white font-bold"
+                            onChange={(e) => setAdminScores(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), away_score: e.target.value } }))}
+                          />
+                          <label className="flex items-center gap-1 ml-2 text-[11px] cursor-pointer text-slate-300">
+                            <input
+                              type="checkbox"
+                              onChange={(e) => setAdminScores(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), has_red_card: e.target.checked } }))}
+                            />
+                            🟥
+                          </label>
+                        </div>
+                        <button
+                          onClick={() => submitMatchResult(m)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold text-[11px] transition"
+                        >
+                          Onayla
                       </button>
                     </div>
                   ))}
