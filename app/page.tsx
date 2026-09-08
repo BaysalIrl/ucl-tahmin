@@ -40,6 +40,95 @@ interface Prediction {
   earned_points?: number;
 }
 
+// 38 TAKIMIN RESMİ CDN LOGO HARİTASI (Kısa ve uzun isim varyasyonlarıyla)
+const TEAM_LOGOS: Record<string, string> = {
+  // Türk Takımları
+  'Galatasaray': 'https://crests.football-data.org/610.png',
+  'Fenerbahçe': 'https://crests.football-data.org/613.png',
+  'Beşiktaş': 'https://crests.football-data.org/611.png',
+
+  // İspanya
+  'Real Madrid': 'https://crests.football-data.org/86.png',
+  'Barcelona': 'https://crests.football-data.org/81.png',
+  'Atlético Madrid': 'https://crests.football-data.org/78.png',
+  'Atlético': 'https://crests.football-data.org/78.png',
+  'Villarreal': 'https://crests.football-data.org/94.png',
+  'Real Betis': 'https://crests.football-data.org/90.png',
+
+  // İngiltere
+  'Man City': 'https://crests.football-data.org/65.png',
+  'Liverpool': 'https://crests.football-data.org/64.png',
+  'Arsenal': 'https://crests.football-data.org/57.png',
+  'Aston Villa': 'https://crests.football-data.org/58.png',
+  'Man United': 'https://crests.football-data.org/66.png',
+
+  // Almanya
+  'Bayern': 'https://crests.football-data.org/5.png',
+  'Dortmund': 'https://crests.football-data.org/4.png',
+  'Leipzig': 'https://crests.football-data.org/721.png',
+  'Stuttgart': 'https://crests.football-data.org/10.png',
+
+  // Fransa
+  'PSG': 'https://crests.football-data.org/524.png',
+  'Marseille': 'https://crests.football-data.org/516.png',
+  'Lille': 'https://crests.football-data.org/521.png',
+  'Lens': 'https://crests.football-data.org/546.png',
+
+  // İtalya
+  'Inter': 'https://crests.football-data.org/108.png',
+  'Napoli': 'https://crests.football-data.org/113.png',
+  'Roma': 'https://crests.football-data.org/100.png',
+  'Como': 'https://crests.football-data.org/1077.png',
+
+  // Portekiz
+  'Porto': 'https://crests.football-data.org/503.png',
+  'Sporting CP': 'https://crests.football-data.org/498.png',
+  'Sporting': 'https://crests.football-data.org/498.png',
+
+  // Hollanda
+  'Feyenoord': 'https://crests.football-data.org/675.png',
+  'PSV': 'https://crests.football-data.org/674.png',
+
+  // Diğer Avrupa Kulüpleri
+  'Club Brugge': 'https://crests.football-data.org/851.png',
+  'Shakhtar': 'https://crests.football-data.org/1903.png',
+  'Slavia Prague': 'https://crests.football-data.org/1900.png',
+  'Slavia': 'https://crests.football-data.org/1900.png',
+  'Bodø/Glimt': 'https://crests.football-data.org/2143.png',
+  'LASK': 'https://crests.football-data.org/2016.png',
+  'Slovan Bratislava': 'https://crests.football-data.org/2144.png',
+  'Slovan': 'https://crests.football-data.org/2144.png',
+  'AEK Athens': 'https://crests.football-data.org/600.png',
+  'AEK': 'https://crests.football-data.org/600.png',
+  'Viking': 'https://crests.football-data.org/335.png',
+  'Sabah': 'https://crests.football-data.org/8468.png',
+};
+
+// Takım Amblemi Bileşeni
+function TeamLogo({ name }: { name: string }) {
+  const logoUrl = TEAM_LOGOS[name] || TEAM_LOGOS[name.trim()];
+
+  if (!logoUrl) {
+    return (
+      <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0 border border-slate-700">
+        {name.substring(0, 2).toUpperCase()}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={logoUrl}
+      alt={name}
+      referrerPolicy="no-referrer"
+      className="w-6 h-6 object-contain shrink-0 drop-shadow"
+      onError={(e) => {
+        e.currentTarget.style.display = 'none';
+      }}
+    />
+  );
+}
+
 const TOURNAMENT_STAGES = [
   { id: 1, label: '1. Hafta' },
   { id: 2, label: '2. Hafta' },
@@ -116,7 +205,6 @@ export default function Home() {
       }
     }
 
-    // Seçili haftanın maçları
     const { data: mtchs } = await supabase
       .from('matches')
       .select('*')
@@ -125,7 +213,6 @@ export default function Home() {
 
     if (mtchs) setMatches(mtchs);
 
-    // Tüm bitmiş maçlar (Geçmiş form analizi için)
     const { data: finished } = await supabase
       .from('matches')
       .select('*')
@@ -291,14 +378,12 @@ export default function Home() {
     }));
   }
 
-  // Bir takımın oynadığı bitmiş maçları en yeniden en eskiye doğru çeker
   function getTeamPastMatches(teamName: string, currentMatchId: number) {
     return allFinishedMatches
       .filter(m => m.id !== currentMatchId && (m.home_team === teamName || m.away_team === teamName))
       .sort((a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime());
   }
 
-  // Galibiyet / Beraberlik / Mağlubiyet rozeti
   function getMatchOutcomeBadge(teamName: string, m: Match) {
     if (m.home_score === null || m.away_score === null) return null;
     const isHome = m.home_team === teamName;
@@ -321,13 +406,24 @@ export default function Home() {
     <main className="min-h-screen bg-slate-950 text-slate-100 p-3 md:p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* ÜST PANEL */}
+        {/* ÜST PANEL / RESMİ UCL LOGOLU BAŞLIK */}
         <header className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow">
-          <div>
-            <h1 className="text-xl font-black text-white flex items-center gap-2">
-              ⚽ Guess to Win
-            </h1>
-            <p className="text-xs text-slate-400">Şampiyonlar Ligi & Avrupa Ligi 2026/27</p>
+          <div className="flex items-center gap-3">
+            <img
+              src="https://crests.football-data.org/CL.png"
+              alt="UCL Starball"
+              referrerPolicy="no-referrer"
+              className="w-10 h-10 object-contain drop-shadow-md brightness-110"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <div>
+              <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                Guess to Win
+              </h1>
+              <p className="text-xs text-slate-400">Şampiyonlar Ligi & Avrupa Ligi 2026/27</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -425,7 +521,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 2 SÜTUNLU ANA ALAN */}
+        {/* 2 SÜTUNLU ALAN */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* SOL: MAÇLAR */}
@@ -465,7 +561,7 @@ export default function Home() {
                   <div key={m.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm hover:border-slate-700 transition">
                     
                     <div className="p-4 space-y-3">
-                      {/* ÜST BİLGİ & AÇILIR OK BUTONU */}
+                      {/* ÜST BİLGİ */}
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           {m.multiplier === 3 ? (
@@ -491,7 +587,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* GEÇMİŞ MAÇLAR / FORM AÇMA OKU */}
                         <button
                           onClick={() => toggleAccordion(m.id)}
                           className="flex items-center gap-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 px-2 py-1 rounded-lg text-slate-300 transition text-[11px] font-semibold"
@@ -503,32 +598,40 @@ export default function Home() {
                         </button>
                       </div>
 
-                      {/* MAÇ ORTA ALANI */}
+                      {/* MAÇ ORTA ALANI: [SEMBOL GS] - [PSG SEMBOL] */}
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <span className="text-right font-bold text-sm text-white truncate">{m.home_team}</span>
                         
+                        {/* EV SAHİBİ: SEMBOL + İSİM */}
+                        <div className="flex items-center justify-end gap-2 min-w-0">
+                          <TeamLogo name={m.home_team} />
+                          <span className="font-bold text-xs sm:text-sm text-white truncate text-right">
+                            {m.home_team}
+                          </span>
+                        </div>
+                        
+                        {/* SKOR VEYA TAHMİN KUTUSU */}
                         {m.is_finished ? (
                           <div className="flex flex-col items-center justify-center">
                             <div className="text-xl font-black text-white tracking-widest bg-slate-950 px-4 py-1 rounded-xl border border-slate-700 shadow-inner">
                               {m.home_score} - {m.away_score}
                             </div>
                             <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
-                              <span>Senin Tahminin:</span>
+                              <span>Tahminin:</span>
                               <b className="text-white font-mono bg-slate-800 px-1.5 py-0.2 rounded">
-                                {pred ? `${pred.pred_home_score} - ${pred.pred_away_score}` : 'Tahmin Yok'}
+                                {pred ? `${pred.pred_home_score} - ${pred.pred_away_score}` : 'Yok'}
                               </b>
                               {pred?.pred_red_card && <span title="Kırmızı Kart Tahmini">🟥</span>}
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                             <input
                               type="number"
                               min="0"
                               disabled={!canEdit}
                               value={pred?.pred_home_score ?? 0}
                               onChange={(e) => handlePredChange(m.id, 'pred_home_score', e.target.value)}
-                              className={`w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
+                              className={`w-11 sm:w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
                                 !canEdit ? 'opacity-50 cursor-not-allowed' : 'focus:border-blue-500'
                               }`}
                             />
@@ -539,14 +642,20 @@ export default function Home() {
                               disabled={!canEdit}
                               value={pred?.pred_away_score ?? 0}
                               onChange={(e) => handlePredChange(m.id, 'pred_away_score', e.target.value)}
-                              className={`w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
+                              className={`w-11 sm:w-12 h-10 bg-slate-950 border border-slate-700 text-center font-black rounded-lg text-white outline-none ${
                                 !canEdit ? 'opacity-50 cursor-not-allowed' : 'focus:border-blue-500'
                               }`}
                             />
                           </div>
                         )}
 
-                        <span className="text-left font-bold text-sm text-white truncate">{m.away_team}</span>
+                        {/* DEPLASMAN: İSİM + SEMBOL */}
+                        <div className="flex items-center justify-start gap-2 min-w-0">
+                          <span className="font-bold text-xs sm:text-sm text-white truncate text-left">
+                            {m.away_team}
+                          </span>
+                          <TeamLogo name={m.away_team} />
+                        </div>
                       </div>
 
                       {/* KIRMIZI KART / PUAN DURUMU */}
@@ -578,7 +687,7 @@ export default function Home() {
                           </div>
                         ) : (
                           <div className="text-[11px] text-slate-400">
-                            Maçta Kırmızı: {m.has_red_card ? <b className="text-red-400">VAR (🟥)</b> : <b className="text-slate-500">YOK</b>}
+                            Kırmızı Kart: {m.has_red_card ? <b className="text-red-400">VAR (🟥)</b> : <b className="text-slate-500">YOK</b>}
                           </div>
                         )}
 
@@ -637,7 +746,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* AÇILIR PANEL: İKİ TAKIMIN DA EN SON YAPTIĞI MAÇLAR (EN YENİDEN EN ESKİYE) */}
+                    {/* AÇILIR PANEL: FORM DURUMU */}
                     {isExpanded && (
                       <div className="bg-slate-950 border-t border-slate-800 p-3.5 space-y-3 text-xs animate-in fade-in duration-200">
                         <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 pb-1 border-b border-slate-800/60">
@@ -646,8 +755,6 @@ export default function Home() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          
-                          {/* EV SAHİBİ SON MAÇLARI */}
                           <div className="space-y-1.5">
                             <span className="font-bold text-white text-[11px] block">{m.home_team} — Son Maçlar:</span>
                             {homePast.length === 0 ? (
@@ -667,7 +774,6 @@ export default function Home() {
                             )}
                           </div>
 
-                          {/* DEPLASMAN SON MAÇLARI */}
                           <div className="space-y-1.5">
                             <span className="font-bold text-white text-[11px] block">{m.away_team} — Son Maçlar:</span>
                             {awayPast.length === 0 ? (
@@ -686,7 +792,6 @@ export default function Home() {
                               ))
                             )}
                           </div>
-
                         </div>
                       </div>
                     )}
@@ -862,7 +967,7 @@ export default function Home() {
                 <div className="pt-2 border-t border-slate-800/80">
                   <b className="text-white block mb-0.5">4. Galatasaray Çarpanı:</b>
                   <p className="text-[11px] text-slate-400">
-                    • <b className="text-red-400 font-bold">Galatasaray</b> maçlarında kazanılan ve kaybedilen tüm puanlar <b className="text-white font-bold">x3</b> ile katlanır (Tam Skor: +18P / Ceza: -30P).
+                    • <b className="text-red-400 font-bold">Galatasaray</b> maçlarında tüm puanlar <b className="text-white font-bold">x3</b> ile katlanır (Tam Skor: +18P / Ceza: -30P).
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
                     • Kapanış: <b className="text-white">Salı 17:30 (İrlanda Saati)</b>.
