@@ -192,7 +192,7 @@ export default function Home() {
     const dayName = nextDeadline.toLocaleDateString('tr-TR', { weekday: 'long' });
 
     // Hangi gün kilitleniyorsa ona göre akıllı mesaj üretir
-    return `${dayName} maçları için son 17:30 (Kalan: ${timeStr})`;
+    return `${dayName} günü tahminleri için kalan süre: ${timeStr}`;
   }
 
   async function fetchInitialData() {
