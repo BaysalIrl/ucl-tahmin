@@ -91,10 +91,12 @@ const TEAM_LOGOS: Record<string, string> = {
 
   // Diğer Avrupa Kulüpleri
   'Club Brugge': 'https://crests.football-data.org/851.png',
-  'Shakhtar': 'https://crests.football-data.org/1903.png',
+  'Shakhtar': 'https://crests.football-data.org/1887.png',
+  'Shakhtar Donetsk': 'https://crests.football-data.org/1887.png',
   'Slavia Prague': 'https://crests.football-data.org/1900.png',
   'Slavia': 'https://crests.football-data.org/1900.png',
-  'Bodø/Glimt': 'https://crests.football-data.org/2143.png',
+  'Bodø/Glimt': 'https://crests.football-data.org/5844.png',
+  'Bodo/Glimt': 'https://crests.football-data.org/5844.png',
   'LASK': 'https://crests.football-data.org/2016.png',
   'Slovan Bratislava': 'https://crests.football-data.org/2144.png',
   'Slovan': 'https://crests.football-data.org/2144.png',
