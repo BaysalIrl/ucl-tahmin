@@ -45,7 +45,7 @@ const TEAM_LOGOS: Record<string, string> = {
   // Türk Takımları
   'Galatasaray': 'https://crests.football-data.org/610.png',
   'Fenerbahçe': 'https://crests.football-data.org/613.png',
-  'Beşiktaş': 'Beşiktaş': 'https://crests.football-data.org/600.png',
+  'Beşiktaş': 'https://crests.football-data.org/600.png',
 
   // İspanya
   'Real Madrid': 'https://crests.football-data.org/86.png',
@@ -98,7 +98,7 @@ const TEAM_LOGOS: Record<string, string> = {
   'LASK': 'https://crests.football-data.org/2016.png',
   'Slovan Bratislava': 'https://crests.football-data.org/2144.png',
   'Slovan': 'https://crests.football-data.org/2144.png',
-  'AEK Athens': 'https://upload.wikimedia.org/wikipedia/en/thumb/3/36/AEK_Athens_FC_logo.svg/300px-AEK_Athens_FC_logo.svg.png',
+  'AEK Athens': 'https://crests.football-data.org/611.png',
   'Viking': 'https://crests.football-data.org/335.png',
   'Sabah': 'https://crests.football-data.org/8468.png',
 };
