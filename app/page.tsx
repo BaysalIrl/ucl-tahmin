@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Trophy, Flame, ChevronDown, Lock, EyeOff, ShieldCheck, 
-  KeyRound, LogOut, Sparkles, Medal, Calendar, HelpCircle, CheckCircle2, History, Timer
+  KeyRound, LogOut, Sparkles, Medal, Calendar, HelpCircle, CheckCircle2, History, Timer, TableProperties
 } from 'lucide-react';
 
 interface Profile {
@@ -40,11 +40,22 @@ interface Prediction {
   earned_points?: number;
 }
 
+interface StandingTeam {
+  rank: number;
+  name: string;
+  ag: number;
+  yg: number;
+  av: number;
+  p: number;
+}
+
 // 38 TAKIMIN LOGO HARİTASI
 const TEAM_LOGOS: Record<string, string> = {
   'Galatasaray': 'https://crests.football-data.org/610.png',
   'Fenerbahçe': 'https://crests.football-data.org/613.png',
+  'Fenerbahce': 'https://crests.football-data.org/613.png',
   'Beşiktaş': 'https://crests.football-data.org/600.png',
+  'Besiktas': 'https://crests.football-data.org/600.png',
   'Real Madrid': 'https://crests.football-data.org/86.png',
   'Barcelona': 'https://crests.football-data.org/81.png',
   'Atlético Madrid': 'https://crests.football-data.org/78.png',
@@ -52,13 +63,17 @@ const TEAM_LOGOS: Record<string, string> = {
   'Villarreal': 'https://crests.football-data.org/94.png',
   'Real Betis': 'https://crests.football-data.org/90.png',
   'Man City': 'https://crests.football-data.org/65.png',
+  'Manchester City': 'https://crests.football-data.org/65.png',
   'Liverpool': 'https://crests.football-data.org/64.png',
   'Arsenal': 'https://crests.football-data.org/57.png',
   'Aston Villa': 'https://crests.football-data.org/58.png',
   'Man United': 'https://crests.football-data.org/66.png',
+  'Manchester United': 'https://crests.football-data.org/66.png',
   'Bayern': 'https://crests.football-data.org/5.png',
+  'Bayern Münih': 'https://crests.football-data.org/5.png',
   'Dortmund': 'https://crests.football-data.org/4.png',
   'Leipzig': 'https://crests.football-data.org/721.png',
+  'RB Leipzig': 'https://crests.football-data.org/721.png',
   'Stuttgart': 'https://crests.football-data.org/10.png',
   'PSG': 'https://crests.football-data.org/524.png',
   'Marseille': 'https://crests.football-data.org/516.png',
@@ -77,6 +92,7 @@ const TEAM_LOGOS: Record<string, string> = {
   'Shakhtar': 'https://crests.football-data.org/1887.png',
   'Shakhtar Donetsk': 'https://crests.football-data.org/1887.png',
   'Slavia Prague': 'https://crests.football-data.org/1900.png',
+  'Slavia Prag': 'https://crests.football-data.org/1900.png',
   'Slavia': 'https://crests.football-data.org/1900.png',
   'Bodø/Glimt': 'https://crests.football-data.org/5844.png',
   'Bodo/Glimt': 'https://crests.football-data.org/5844.png',
@@ -89,12 +105,85 @@ const TEAM_LOGOS: Record<string, string> = {
   'Sabah': 'https://crests.football-data.org/8468.png',
 };
 
+// ŞAMPİYONLAR LİGİ 1. HAFTA RESMİ PUAN DURUMU (36 TAKIM)
+// 36 Resmi UCL Takımının Sabit Listesi
+const ALL_UCL_TEAMS = [
+  'PSG', 'Bayern Münih', 'Barcelona', 'Manchester United', 'Como', 'Sporting',
+  'Stuttgart', 'Man City', 'Aston Villa', 'Real Betis', 'Dortmund', 'Lens',
+  'Liverpool', 'Real Madrid', 'AEK', 'Arsenal', 'Fenerbahçe', 'PSV',
+  'Roma', 'Shakhtar', 'Club Brugge', 'Lille', 'Slavia Prag', 'Villarreal',
+  'Atlético Madrid', 'Inter', 'LASK', 'Napoli', 'Galatasaray', 'Viking',
+  'Porto', 'RB Leipzig', 'Feyenoord', 'Sabah', 'Slovan Bratislava', 'Bodø/Glimt'
+];
+
+// Bitmiş maçlardan canlı puan durumunu (AG, YG, AV, Puan) hesaplayan fonksiyon
+function computeDynamicStandings(finishedMatches: Match[]): StandingTeam[] {
+  const stats: Record<string, { ag: number; yg: number; p: number }> = {};
+
+  // Tüm 36 takımı başlangıçta 0 değerlerle başlat
+  ALL_UCL_TEAMS.forEach(team => {
+    stats[team] = { ag: 0, yg: 0, p: 0 };
+  });
+
+  // Bitmiş tüm maçları tara ve istatistikleri topla
+  finishedMatches.forEach(m => {
+    if (m.home_score === null || m.away_score === null) return;
+
+    // Takım isimlerini eşleştir (CP, Athens gibi ekleri tolere et)
+    const homeKey = ALL_UCL_TEAMS.find(t => t.toLowerCase().includes(m.home_team.toLowerCase().slice(0, 4))) || m.home_team;
+    const awayKey = ALL_UCL_TEAMS.find(t => t.toLowerCase().includes(m.away_team.toLowerCase().slice(0, 4))) || m.away_team;
+
+    if (!stats[homeKey]) stats[homeKey] = { ag: 0, yg: 0, p: 0 };
+    if (!stats[awayKey]) stats[awayKey] = { ag: 0, yg: 0, p: 0 };
+
+    // Golleri ekle
+    stats[homeKey].ag += m.home_score;
+    stats[homeKey].yg += m.away_score;
+    stats[awayKey].ag += m.away_score;
+    stats[awayKey].yg += m.home_score;
+
+    // Puanları dağıt (Galibiyet: 3P, Beraberlik: 1P, Mağlubiyet: 0P)
+    if (m.home_score > m.away_score) {
+      stats[homeKey].p += 3;
+    } else if (m.home_score < m.away_score) {
+      stats[awayKey].p += 3;
+    } else {
+      stats[homeKey].p += 1;
+      stats[awayKey].p += 1;
+    }
+  });
+
+  // Takımları resmi UEFA kriterlerine göre sırala (Puan -> Averaj -> Atılan Gol -> Alfabetik)
+  const sorted = Object.keys(stats).map(name => {
+    const s = stats[name];
+    return {
+      rank: 0,
+      name,
+      ag: s.ag,
+      yg: s.yg,
+      av: s.ag - s.yg,
+      p: s.p,
+    };
+  }).sort((a, b) => {
+    if (b.p !== a.p) return b.p - a.p;
+    if (b.av !== a.av) return b.av - a.av;
+    if (b.ag !== a.ag) return b.ag - a.ag;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Sıralama numaralarını (1'den 36'ya) ver
+  return sorted.map((item, index) => ({
+    ...item,
+    rank: index + 1
+  }));
+}
+
 function TeamLogo({ name }: { name: string }) {
   const logoUrl = TEAM_LOGOS[name] || TEAM_LOGOS[name.trim()];
 
   if (!logoUrl) {
     return (
-      <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0 border border-slate-700">
+      <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-400 shrink-0 border border-slate-700">
         {name.substring(0, 2).toUpperCase()}
       </div>
     );
@@ -105,7 +194,7 @@ function TeamLogo({ name }: { name: string }) {
       src={logoUrl}
       alt={name}
       referrerPolicy="no-referrer"
-      className="w-6 h-6 object-contain shrink-0 drop-shadow"
+      className="w-5 h-5 object-contain shrink-0 drop-shadow"
       onError={(e) => {
         e.currentTarget.style.display = 'none';
       }}
@@ -142,7 +231,7 @@ export default function Home() {
 
   const [myPredictions, setMyPredictions] = useState<Record<number, Prediction>>({});
   const [allPredictions, setAllPredictions] = useState<Prediction[]>([]);
-  const [activeWeek, setActiveWeek] = useState<number>(1);
+  const [activeWeek, setActiveWeek] = useState<number>(2);
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminScores, setAdminScores] = useState<Record<number, any>>({});
   
@@ -357,7 +446,10 @@ export default function Home() {
 
   async function submitMatchResult(match: Match) {
     const res = adminScores[match.id];
-    if (!res) return;
+    if (!res) {
+      alert('Lütfen önce maç sonucunu girin!');
+      return;
+    }
 
     const { error } = await supabase
       .from('matches')
@@ -375,8 +467,13 @@ export default function Home() {
       return;
     }
 
-    await supabase.rpc('calculate_week_points', { target_week: activeWeek });
-    alert(`${match.home_team} - ${match.away_team} maçı sonuçlandı!`);
+    const { error: rpcErr } = await supabase.rpc('calculate_week_points', { target_week: activeWeek });
+    if (rpcErr) {
+      alert('Puan hesaplama hatası: ' + rpcErr.message);
+      return;
+    }
+
+    alert(`${match.home_team} - ${match.away_team} maçı sonuçlandı ve puanlar güncellendi!`);
     fetchInitialData();
     if (activeUser && isAuthenticated) fetchUserPredictions(activeUser.id);
   }
@@ -388,15 +485,45 @@ export default function Home() {
     }));
   }
 
+  // ESNEK VE KORUMALI TAKIM İSMİ TEMİZLEME MOTORU (Sporting CP, AEK Athens takılmalarını önler)
+  function normalizeTeamName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[\s\-_]/g, '')
+      .replace('cp', '')
+      .replace('athens', '')
+      .replace('donetsk', '')
+      .replace('prague', '')
+      .replace('prag', '')
+      .replace('münih', '')
+      .replace('munich', '')
+      .replace('city', '')
+      .replace('united', '')
+      .trim();
+  }
+
   function getTeamPastMatches(teamName: string, currentMatchId: number) {
+    const target = normalizeTeamName(teamName);
+
     return allFinishedMatches
-      .filter(m => m.id !== currentMatchId && (m.home_team === teamName || m.away_team === teamName))
+      .filter(m => {
+        if (m.id === currentMatchId) return false;
+        const homeNorm = normalizeTeamName(m.home_team);
+        const awayNorm = normalizeTeamName(m.away_team);
+        return (
+          homeNorm.includes(target) || target.includes(homeNorm) ||
+          awayNorm.includes(target) || target.includes(awayNorm)
+        );
+      })
       .sort((a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime());
   }
 
   function getMatchOutcomeBadge(teamName: string, m: Match) {
     if (m.home_score === null || m.away_score === null) return null;
-    const isHome = m.home_team === teamName;
+    const target = normalizeTeamName(teamName);
+    const homeNorm = normalizeTeamName(m.home_team);
+    const isHome = homeNorm.includes(target) || target.includes(homeNorm);
+
     const teamGoals = isHome ? m.home_score : m.away_score;
     const opponentGoals = isHome ? m.away_score : m.home_score;
 
@@ -420,7 +547,7 @@ export default function Home() {
         <header className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow">
           <div className="flex items-center gap-3">
             <img
-              src="https://crests.football-data.org/CL.png"
+              src="https://images.fotmob.com/image_resources/logo/leaguelogo/42.png"
               alt="UCL Starball"
               referrerPolicy="no-referrer"
               className="w-10 h-10 object-contain drop-shadow-md brightness-110"
@@ -586,11 +713,11 @@ export default function Home() {
                       {/* ÜST BİLGİ & DURUM ROZETİ */}
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-{m.multiplier === 3 ? (
-  <span className="bg-red-500/20 text-red-400 border border-red-500/30 font-black px-2 py-0.5 rounded flex items-center gap-1">
-    🔥 DEĞERLİ MAÇ (x3)
-  </span>
-) : m.multiplier > 1 ? (
+                          {isTurkishGiant ? (
+                            <span className="bg-red-500/20 text-red-400 border border-red-500/30 font-black px-2 py-0.5 rounded flex items-center gap-1">
+                              🔥 {turkishTeamName} (x3)
+                            </span>
+                          ) : m.multiplier > 1 ? (
                             <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black px-2 py-0.5 rounded">
                               ⭐ x{m.multiplier} PUAN
                             </span>
@@ -883,20 +1010,21 @@ export default function Home() {
 
           </div>
 
-          {/* SAĞ: PUAN TABLOSU & RESMİ KURALLAR */}
+          {/* SAĞ: PUAN TABLOLARI & RESMİ KURALLAR */}
           <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
             
-            <section className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-yellow-400" /> Puan Tablosu
+            {/* 1. KULLANICI PUAN TABLOSU (KOMPAKT BOYUT) */}
+            <section className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-xl">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+                <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                  <Trophy className="w-4 h-4 text-yellow-400" /> Tahmin Ligi Puan Durumu
                 </h2>
-                <span className="text-[11px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-semibold">
+                <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-semibold">
                   Canlı
                 </span>
               </div>
 
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-1.5">
                 {sortedProfiles.map((p, idx) => {
                   const isLeader = idx === 0;
                   const isSecond = idx === 1;
@@ -905,41 +1033,41 @@ export default function Home() {
                   return (
                     <div
                       key={p.id}
-                      className={`p-3.5 rounded-xl border flex items-center justify-between transition ${
+                      className={`px-3 py-2 rounded-xl border flex items-center justify-between transition ${
                         isLeader
                           ? 'bg-amber-500/10 border-amber-500/40 shadow-sm'
                           : 'bg-slate-950 border-slate-800/90'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 text-center">
-                          {isLeader && <Medal className="w-5 h-5 text-amber-400 inline" />}
-                          {isSecond && <Medal className="w-5 h-5 text-slate-300 inline" />}
-                          {isThird && <Medal className="w-5 h-5 text-amber-700 inline" />}
-                          {idx > 2 && <span className="text-xs text-slate-500 font-bold">#{idx + 1}</span>}
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-4 text-center">
+                          {isLeader && <Medal className="w-4 h-4 text-amber-400 inline" />}
+                          {isSecond && <Medal className="w-4 h-4 text-slate-300 inline" />}
+                          {isThird && <Medal className="w-4 h-4 text-amber-700 inline" />}
+                          {idx > 2 && <span className="text-[11px] text-slate-500 font-bold">#{idx + 1}</span>}
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-sm text-white">{p.username}</span>
+                            <span className="font-bold text-xs text-white">{p.username}</span>
                             {activeUser?.id === p.id && (
-                              <span className="text-[10px] bg-blue-600/30 text-blue-300 border border-blue-500/40 px-1.5 py-0.2 rounded font-bold">
+                              <span className="text-[9px] bg-blue-600/30 text-blue-300 border border-blue-500/40 px-1 py-0.2 rounded font-bold">
                                 Sen
                               </span>
                             )}
                           </div>
                           {p.has_won_championship && (
-                            <p className="text-[10px] text-amber-400 font-bold">🏆 ÖNCEKİ ŞAMPİYON</p>
+                            <p className="text-[9px] text-amber-400 font-bold">🏆 ÖNCEKİ ŞAMPİYON</p>
                           )}
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <span className={`text-2xl font-black ${
+                      <div className="text-right flex items-baseline gap-1.5">
+                        <span className={`text-base font-black ${
                           p.total_points > 0 ? 'text-emerald-400' : p.total_points < 0 ? 'text-red-400' : 'text-white'
                         }`}>
                           {p.total_points}
                         </span>
-                        <span className="text-[10px] text-slate-500 block font-semibold">PUAN</span>
+                        <span className="text-[9px] text-slate-500 font-semibold">PUAN</span>
                       </div>
                     </div>
                   );
@@ -947,7 +1075,91 @@ export default function Home() {
               </div>
             </section>
 
-            {/* RESMİ KURALLAR */}
+            {/* 2. ŞAMPİYONLAR LİGİ RESMİ PUAN DURUMU TABLOSU */}
+            <section className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-xl">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+                <h2 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <TableProperties className="w-3.5 h-3.5 text-blue-400" /> Şampiyonlar Ligi Puan Durumu
+                </h2>
+                <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-1.5 py-0.2 rounded font-bold">
+                  1. Hafta
+                </span>
+              </div>
+
+              {/* TABLO ALANI (KAYDIRILABİLİR LİSTE) */}
+              <div className="max-h-72 overflow-y-auto pr-1 text-[11px] scrollbar-thin">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-slate-900 text-[10px] text-slate-400 uppercase border-b border-slate-800 font-bold">
+                    <tr>
+                      <th className="py-1 px-1 text-center w-6">#</th>
+                      <th className="py-1 px-1.5">Takım</th>
+                      <th className="py-1 px-1 text-center w-7">AG</th>
+                      <th className="py-1 px-1 text-center w-7">YG</th>
+                      <th className="py-1 px-1 text-center w-7">AV</th>
+                      <th className="py-1 px-1 text-center w-7 font-black text-white">P</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {computeDynamicStandings(allFinishedMatches).map((t) => {
+                      const isTop8 = t.rank <= 8;
+                      const isPlayoff = t.rank > 8 && t.rank <= 24;
+
+                      return (
+                        <tr 
+                          key={t.rank} 
+                          className={`hover:bg-slate-800/40 transition ${
+                            isTop8 
+                              ? 'bg-blue-500/[0.03]' 
+                              : isPlayoff 
+                              ? 'bg-transparent' 
+                              : 'bg-red-500/[0.02]'
+                          }`}
+                        >
+                          <td className="py-1 px-1 text-center font-bold">
+                            <span className={`inline-block w-4 h-4 text-[9px] leading-4 rounded ${
+                              t.rank === 1 ? 'bg-amber-400 text-slate-950 font-black' :
+                              t.rank === 2 ? 'bg-slate-300 text-slate-950 font-black' :
+                              t.rank === 3 ? 'bg-amber-700 text-white font-black' :
+                              isTop8 ? 'bg-blue-500/20 text-blue-400 font-bold' :
+                              'text-slate-500'
+                            }`}>
+                              {t.rank}
+                            </span>
+                          </td>
+                          <td className="py-1 px-1.5 font-medium text-slate-200">
+                            <div className="flex items-center gap-1.5 truncate max-w-[130px]">
+                              <TeamLogo name={t.name} />
+                              <span className="truncate">{t.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-1 px-1 text-center text-slate-400">{t.ag}</td>
+                          <td className="py-1 px-1 text-center text-slate-400">{t.yg}</td>
+                          <td className={`py-1 px-1 text-center font-mono ${
+                            t.av > 0 ? 'text-emerald-400' : t.av < 0 ? 'text-red-400' : 'text-slate-400'
+                          }`}>
+                            {t.av > 0 ? `+${t.av}` : t.av}
+                          </td>
+                          <td className="py-1 px-1 text-center font-black text-white bg-slate-950/40">{t.p}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-500 mt-1">
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> 1-8: Son 16
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> 9-24: Play-off
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span> 25-36: Elenir
+                </span>
+              </div>
+            </section>
+
+            {/* 3. RESMİ KURALLAR */}
             <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-3">
               <h3 className="font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
                 <HelpCircle className="w-4 h-4 text-blue-400" /> Resmi Lig Puanlama Kuralları
